@@ -1,0 +1,103 @@
+/* --- Global Styles --- */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: #0f172a; /* Deep dark background for Stage 2 and 3 */
+    color: white;
+}
+
+/* --- Stage 1: Login Card (White Theme) --- */
+/* Note: The login page uses a separate white card as per your screenshot */
+.login-container {
+    background: white;
+    color: #333;
+    padding: 40px;
+    border-radius: 15px;
+    width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.login-input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+/* --- Stage 2 & 3: Dark Mode Dashboard & Biometrics --- */
+.card {
+    background: #1e293b; /* Darker slate for the card */
+    padding: 40px;
+    border-radius: 20px;
+    width: 350px;
+    text-align: center;
+    border: 2px solid #38bdf8; /* Glowing Cyan border from your screenshot */
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+}
+
+/* --- Navigation/Menu Buttons --- */
+.menu-item {
+    background: #334155;
+    color: white;
+    padding: 12px;
+    border-radius: 25px;
+    margin: 8px 0;
+    font-weight: bold;
+    font-size: 14px;
+    text-transform: uppercase;
+    cursor: default;
+}
+
+/* --- Primary Action Button (Login/Activate Voice) --- */
+.mic-btn {
+    width: 100%;
+    background: #38bdf8; /* Cyan blue for Stage 3 */
+    color: #0f172a;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.mic-btn:hover {
+    background: #0ea5e9;
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+}
+
+/* Logout Button Specifics */
+.logout-btn {
+    background: #ef4444; /* Red as per your screenshot */
+    color: white;
+}
+
+.logout-btn:hover {
+    background: #dc2626;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+/* --- Hardware Elements --- */
+video#v {
+    border-radius: 10px;
+    border: 2px solid #38bdf8;
+    background: #000;
+}
+
+/* Status Text Styles */
+#status, #output {
+    color: #38bdf8;
+    margin-top: 15px;
+    font-style: italic;
+    min-height: 20px;
+}

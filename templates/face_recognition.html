@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Face Recognition</title>
+</head>
+<body style="background: #0f172a; display: flex; align-items: center; justify-content: center; height: 100vh; color: white; margin: 0;">
+    <div style="text-align: center; background: #1e293b; padding: 30px; border-radius: 20px; border: 2px solid #38bdf8;">
+        <h1>Scanning Face...</h1>
+        <video id="v" autoplay muted playsinline width="400" height="300" style="border-radius:10px; border: 2px solid #38bdf8;"></video>
+        <canvas id="c" width="400" height="300" style="display:none;"></canvas>
+        
+        <p id="status" style="margin-top: 15px; font-weight: bold; font-size: 1.2em; color: #38bdf8;">
+            Hold still for verification...
+        </p>
+    </div>
+
+    <script>
+    const v = document.getElementById('v');
+    const c = document.getElementById('c');
+    const statusText = document.getElementById('status');
+    let isVerified = false;
+    let scanInterval;
+
+    navigator.mediaDevices.getUserMedia({video: true}).then(s => v.srcObject = s);
+
+    async function scan() {
+        if (isVerified) return; 
+
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        
+        try {
+            const res = await fetch('/verify_face', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ image: c.toDataURL('image/jpeg') })
+            });
+            
+            const data = await res.json();
+            
+            if (data.status === "success") {
+                isVerified = true;
+                clearInterval(scanInterval); // STOP SCANNING
+                statusText.innerText = "Verified! Accessing Dashboard...";
+                statusText.style.color = "#4ade80"; 
+                
+                setTimeout(() => {
+                    window.location.href = "/dashboard";
+                }, 1500); 
+            }
+        } catch (error) {
+            console.error("Scanning error:", error);
+        }
+    }
+
+    scanInterval = setInterval(scan, 2000);
+</script>
+</body>
+</html>
