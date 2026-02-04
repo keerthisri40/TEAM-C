@@ -3,64 +3,68 @@
 <head>
     <title>NovaVoice Dashboard</title>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .card { background: #1e293b; padding: 40px; border-radius: 20px; text-align: center; border: 2px solid #38bdf8; width: 350px; }
-        .btn { width: 100%; padding: 15px; margin: 10px 0; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; }
-        #status { color: #38bdf8; font-style: italic; margin-top: 20px; min-height: 40px; font-size: 14px; }
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        .card { background: #1e293b; padding: 40px; border-radius: 20px; text-align: center; border: 2px solid #38bdf8; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 12px; }
+        h1 { color: #38bdf8; margin-bottom: 20px; font-size: 28px; }
+        .mic-btn { background: #fbbf24; color: #000; width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; animation: pulse 1.5s infinite; }
+        .btn { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; color: white; background: #334155; transition: 0.2s; }
+        .compose-btn { background: #38bdf8; color: #000; }
+        .logout-btn { background: #ef4444; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(251, 191, 36, 0); } 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); } }
+        #status { color: #fbbf24; margin-top: 15px; font-weight: bold; font-style: italic; }
     </style>
 </head>
 <body>
     <div class="card">
-    <h2 style="color: #38bdf8;">NovaVoice v2.5</h2>
-    
-    <button onclick="startHandsFree()" class="btn" style="background: #38bdf8; color: #0f172a;">🎤 ACTIVATE VOICE</button>
-    
-    <button onclick="window.location.href='/inbox'" class="btn" style="background: #334155; color: white;">📥 INBOX</button>
-    <button onclick="window.location.href='/sent'" class="btn" style="background: #334155; color: white;">📤 SENT</button>
-    <button onclick="window.location.href='/trash'" class="btn" style="background: #334155; color: white;">🗑️ TRASH</button>
-    
-    <button onclick="window.location.href='/'" class="btn" style="background: #ef4444; color: white;">LOGOUT</button>
-    
-    <div id="status">Ready for hands-free assistant</div>
-</div>
+        <h1>NovaVoice Dashboard</h1>
+        <button class="mic-btn">🎤 SYSTEM LISTENING</button>
+        <button onclick="window.location.href='/compose'" class="btn compose-btn">COMPOSE</button>
+        <button onclick="window.location.href='/inbox'" class="btn">INBOX</button>
+        <button onclick="window.location.href='/sent'" class="btn">SENT</button>
+        <button onclick="window.location.href='/trash'" class="btn">🗑️ TRASH</button>
+        <button onclick="window.location.href='/face_auth_page'" class="btn logout-btn">LOGOUT</button>
+        <div id="status">Listening...</div>
+    </div>
 
     <script>
-        async function startHandsFree() {
-            const status = document.getElementById('status');
-            status.style.color = "#38bdf8";
-            status.innerText = "Listening for recipient (e.g. 'mail1')...";
+    function speak(text) {
+        return new Promise((resolve) => {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.onend = () => { setTimeout(resolve, 300); };
+            window.speechSynthesis.speak(utterance);
+        });
+    }
 
-            try {
-                // Step 1: Identify Recipient
-                const res = await fetch('/voice_action', {method: 'POST'});
-                const data = await res.json();
+    async function loopListener() {
+        try {
+            const res = await fetch('/voice_action', { method: 'POST' });
+            const data = await res.json();
 
-                if (data.status === "ask_content") {
-                    status.innerText = data.message;
-                    
-                    // Step 2: Automatically start capturing the message body
-                    const mailRes = await fetch('/send_dictated_mail', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ recipient: data.recipient })
-                    });
-                    const final = await mailRes.json();
-
-                    if (final.status === "success") {
-                        status.style.color = "#4ade80";
-                        status.innerText = "✅ Email Sent: " + final.message;
-                    } else {
-                        status.style.color = "#f87171";
-                        status.innerText = "❌ " + final.message;
-                    }
-                } else {
-                    status.style.color = "#f87171";
-                    status.innerText = "❌ " + data.message;
-                }
-            } catch (err) {
-                status.innerText = "❌ Connection Error: Check Internet";
+            // UPDATION: Update the status text below logout
+            const statusDiv = document.getElementById('status');
+            
+            if (data.status === "ask_reply") {
+                statusDiv.innerText = "waiting for reply or cancel"; // The message you requested
+            } else if (data.status === "navigate" || data.status === "logout") {
+                statusDiv.innerText = data.message;
+                await speak(data.message);
+                window.location.href = data.url;
+                return; 
+            } else {
+                statusDiv.innerText = "Listening...";
             }
-        }
+
+            if (data.message) { await speak(data.message); }
+            loopListener(); 
+        } catch (err) { setTimeout(loopListener, 1000); }
+    }
+
+    window.onload = async () => {
+        // This will always run when navigating back to dashboard
+        await speak("Hi Keerthi, listening for your commands.");
+        loopListener();
+    };
     </script>
 </body>
 </html>

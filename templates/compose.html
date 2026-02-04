@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NovaVoice - Compose</title>
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 30px; border-radius: 20px; border: 2px solid #38bdf8; width: 450px; text-align: center; }
+        input, textarea { width: 95%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; }
+        #status-msg { color: #fbbf24; font-weight: bold; margin-top: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="color: #38bdf8; margin-top: 0;">New Message</h2>
+        <input type="text" id="recipient" placeholder="Recipient ID">
+        <input type="text" id="subject" placeholder="Subject">
+        <textarea id="body" rows="5" placeholder="Message content"></textarea>
+        <div id="status-msg">🎤 System Active...</div>
+    </div>
+
+    <script>
+        const CONTACT_MAP = { "shiny": "kuntamshiny", "keerthi": "keerthisri66444", "niti": "nitishree6644" };
+
+        function speak(text) {
+            return new Promise((resolve) => {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.onend = () => { setTimeout(resolve, 400); };
+                window.speechSynthesis.speak(utterance);
+            });
+        }
+
+        async function getVoice() {
+            const res = await fetch('/voice_action', {method: 'POST'});
+            const data = await res.json();
+            if (data.status === "navigate") { window.location.href = data.url; return "EXIT"; }
+            return (data.message || "").toLowerCase().trim();
+        }
+
+        function cleanRecipient(text) {
+            let name = text.replace(/\s+/g, ""); 
+            for (let key in CONTACT_MAP) {
+                if (name.includes(key)) return CONTACT_MAP[key] + "@gmail.com";
+            }
+            return name.includes("@") ? name : name + "@gmail.com"; 
+        }
+
+        async function runSequence() {
+            // 1. Recipient
+            await speak("Who is the recipient?");
+            let rawName = await getVoice();
+            if (rawName === "EXIT") return;
+            document.getElementById('recipient').value = cleanRecipient(rawName);
+
+            // 2. Subject
+            await speak("What is the subject?");
+            let subject = await getVoice();
+            if (subject === "EXIT") return;
+            document.getElementById('subject').value = subject;
+
+            // 3. Body
+            await speak("Please dictate your message.");
+            let bodyText = await getVoice();
+            if (bodyText === "EXIT") return;
+            document.getElementById('body').value = bodyText;
+            
+            // 4. Final Confirmation
+            await speak("Should I send it? Say send or cancel.");
+            let cmd = await getVoice();
+            console.log("System heard for confirmation: ", cmd); // Debugging line
+
+            // IMPROVED LOGIC: 
+            // We check if "send" exists anywhere in the string to be safe.
+            if (cmd !== "EXIT" && cmd.includes("send")) {
+                document.getElementById('status-msg').innerText = "🚀 Sending Email...";
+                
+                try {
+                    const response = await fetch('/send_dictated_mail', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            recipient: document.getElementById('recipient').value,
+                            subject: document.getElementById('subject').value,
+                            content: document.getElementById('body').value
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.status === "success") {
+                        await speak("Email sent successfully.");
+                    } else {
+                        await speak("I encountered an error sending the mail.");
+                    }
+                } catch (e) {
+                    await speak("Network error. Could not send.");
+                }
+                
+                window.location.href = '/dashboard';
+
+            } else if (cmd.includes("cancel") || cmd === "EXIT") {
+                await speak("Cancelled.");
+                window.location.href = '/dashboard';
+            } else {
+                // If it heard something else entirely, don't just cancel. 
+                // Ask one more time or default to dashboard to be safe.
+                await speak("Command not recognized. Returning to dashboard for safety.");
+                window.location.href = '/dashboard';
+            }
+        }
+        window.onload = runSequence;
+    </script>
+</body>
+</html>

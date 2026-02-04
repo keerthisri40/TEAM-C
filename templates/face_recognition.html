@@ -1,59 +1,87 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <title>Face Recognition</title>
+    <title>NovaVoice - Login</title>
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { position: relative; border: 4px solid #38bdf8; border-radius: 15px; overflow: hidden; box-shadow: 0 0 20px #38bdf8; }
+        video { display: block; width: 480px; height: 360px; object-fit: cover; }
+        .scan-line { position: absolute; width: 100%; height: 4px; background: #4ade80; box-shadow: 0 0 15px #4ade80; z-index: 10; animation: moveScan 2s linear infinite; }
+        @keyframes moveScan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
+        h1 { color: #38bdf8; letter-spacing: 5px; margin: 0; }
+        p { color: #94a3b8; letter-spacing: 2px; margin-bottom: 20px; }
+    </style>
 </head>
-<body style="background: #0f172a; display: flex; align-items: center; justify-content: center; height: 100vh; color: white; margin: 0;">
-    <div style="text-align: center; background: #1e293b; padding: 30px; border-radius: 20px; border: 2px solid #38bdf8;">
-        <h1>Scanning Face...</h1>
-        <video id="v" autoplay muted playsinline width="400" height="300" style="border-radius:10px; border: 2px solid #38bdf8;"></video>
-        <canvas id="c" width="400" height="300" style="display:none;"></canvas>
-        
-        <p id="status" style="margin-top: 15px; font-weight: bold; font-size: 1.2em; color: #38bdf8;">
-            Hold still for verification...
-        </p>
+<body>
+    <h1>NOVAVOICE</h1>
+    <p>HANDS FREE COMMUNICATION</p>
+    <div class="container">
+        <div class="scan-line"></div>
+        <video id="video" autoplay muted playsinline></video>
     </div>
+    <h3 id="status" style="margin-top: 20px;">🔍 SCANNING FACE...</h3>
 
     <script>
-    const v = document.getElementById('v');
-    const c = document.getElementById('c');
-    const statusText = document.getElementById('status');
-    let isVerified = false;
-    let scanInterval;
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const canvas = document.createElement('canvas');
 
-    navigator.mediaDevices.getUserMedia({video: true}).then(s => v.srcObject = s);
-
-    async function scan() {
-        if (isVerified) return; 
-
-        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-        
-        try {
-            const res = await fetch('/verify_face', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: c.toDataURL('image/jpeg') })
+        // Start Camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => {
+                status.innerText = "❌ CAMERA ERROR: PLEASE ALLOW ACCESS";
+                status.style.color = "#ef4444";
             });
-            
-            const data = await res.json();
-            
-            if (data.status === "success") {
-                isVerified = true;
-                clearInterval(scanInterval); // STOP SCANNING
-                statusText.innerText = "Verified! Accessing Dashboard...";
-                statusText.style.color = "#4ade80"; 
-                
-                setTimeout(() => {
-                    window.location.href = "/dashboard";
-                }, 1500); 
-            }
-        } catch (error) {
-            console.error("Scanning error:", error);
-        }
-    }
 
-    scanInterval = setInterval(scan, 2000);
-</script>
+        function speak(text) {
+            return new Promise((resolve) => {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.onend = resolve;
+                window.speechSynthesis.speak(utterance);
+            });
+        }
+
+        async function verify() {
+            if (video.videoWidth === 0) {
+                setTimeout(verify, 500);
+                return;
+            }
+
+            canvas.width = video.videoWidth; 
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            try {
+                const res = await fetch('/verify_face', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: imageData })
+                });
+                const data = await res.json();
+                
+                if (data.status === "success") {
+                    status.innerText = "✅ IDENTITY VERIFIED";
+                    status.style.color = "#4ade80";
+                    // Important: We speak locally since data.message might be missing
+                    await speak("Identity Verified. Welcome Keerthi."); 
+                    window.location.href = "/dashboard";
+                } else {
+                    // Fail silently and retry to keep the scan look smooth
+                    setTimeout(verify, 1000);
+                }
+            } catch (err) {
+                console.error("Fetch error:", err);
+                setTimeout(verify, 2000);
+            }
+        }
+
+        video.onplay = () => { 
+            status.innerText = "🔍 SCANNING FACE...";
+            setTimeout(verify, 1500); 
+        };
+    </script>
 </body>
 </html>
