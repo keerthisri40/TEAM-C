@@ -50,3 +50,5 @@ voice-mail/
 .cache/
 todo.txt
 *.local
+token.json
+credentials.json
