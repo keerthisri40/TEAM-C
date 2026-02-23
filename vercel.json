@@ -1,0 +1,68 @@
+{
+    "functions": {
+        "api/**/*.ts": {
+            "maxDuration": 30
+        }
+    },
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "X-Frame-Options",
+                    "value": "DENY"
+                },
+                {
+                    "key": "X-Content-Type-Options",
+                    "value": "nosniff"
+                },
+                {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                },
+                {
+                    "key": "Referrer-Policy",
+                    "value": "strict-origin-when-cross-origin"
+                },
+                {
+                    "key": "Content-Security-Policy",
+                    "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://accounts.google.com https://www.googletagmanager.com https://www.google-analytics.com https://cdn.jsdelivr.net; script-src-elem 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://accounts.google.com https://www.googletagmanager.com https://www.google-analytics.com https://cdn.jsdelivr.net; connect-src 'self' https://api.telegram.org https://*.googleapis.com https://*.firebaseio.com https://*.google-analytics.com wss://*.firebaseio.com https://accounts.google.com https://tfhub.dev https://*.gstatic.com https://cdn.jsdelivr.net https://www.kaggle.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://content.googleapis.com https://content-gmail.googleapis.com https://accounts.google.com; object-src 'none';"
+                }
+            ]
+        }
+    ],
+    "rewrites": [
+        {
+            "source": "/api/v1/ai/:path*",
+            "destination": "/api/ai"
+        },
+        {
+            "source": "/api/v1/gmail/:path*",
+            "destination": "/api/gmail"
+        },
+        {
+            "source": "/api/v1/telegram/:path*",
+            "destination": "/api/telegram"
+        },
+        {
+            "source": "/api/v1/ai",
+            "destination": "/api/ai"
+        },
+        {
+            "source": "/api/v1/gmail",
+            "destination": "/api/gmail"
+        },
+        {
+            "source": "/api/v1/telegram",
+            "destination": "/api/telegram"
+        },
+        {
+            "source": "/api/v1/health",
+            "destination": "/api/health"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}
