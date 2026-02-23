@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .analytics-container {
+            padding: 25px;
+        }
+
+        h2 {
+            color: #38bdf8;
+            margin-bottom: 25px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .tile {
+            background: #1e293b;
+            padding: 18px;
+            border-radius: 12px;
+            text-align: center;
+            border-left: 4px solid #38bdf8;
+        }
+
+        .tile small {
+            display: block;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .tile .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .visual-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .graph-box {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        canvas {
+            max-width: 100% !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="analytics-container">
+
+    <h2><i class="fas fa-chart-line"></i> NovaVoice Performance Metrics</h2>
+
+    <!-- ===== TOP STATS ===== -->
+    <div class="stats-grid">
+        <div class="tile">
+            <small>VOICE COMMANDS</small>
+            <div class="value" id="v-cmds">0</div>
+        </div>
+
+        <div class="tile">
+            <small>EMAILS SENT</small>
+            <div class="value" id="v-email">0</div>
+        </div>
+
+        <div class="tile">
+            <small>WHATSAPP SENT</small>
+            <div class="value" id="v-wa">0</div>
+        </div>
+
+        <div class="tile">
+            <small>TELEGRAM SENT</small>
+            <div class="value" id="v-tg">0</div>
+        </div>
+
+        <div class="tile">
+            <small>SUMMARIES</small>
+            <div class="value" id="v-sums">0</div>
+        </div>
+    </div>
+
+    <!-- ===== GRAPHS ===== -->
+    <div class="visual-row">
+        <div class="graph-box">
+            <canvas id="chartDoughnut"></canvas>
+        </div>
+
+        <div class="graph-box">
+            <canvas id="chartBar"></canvas>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const dCtx = document.getElementById('chartDoughnut');
+    const bCtx = document.getElementById('chartBar');
+
+    const dChart = new Chart(dCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Email', 'WhatsApp', 'Telegram'],
+            datasets: [{
+                data: [0,0,0],
+                backgroundColor: ['#38bdf8','#22c55e','#0088cc']
+            }]
+        }
+    });
+
+    const bChart = new Chart(bCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Voice Cmds', 'Summaries', 'Emails Received'],
+            datasets: [{
+                label: 'Activity',
+                data: [0,0,0],
+                backgroundColor: '#38bdf8'
+            }]
+        }
+    });
+
+    async function syncStats() {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+
+        // ===== Update Top Cards =====
+        document.getElementById('v-cmds').innerText = data.voice_commands;
+        document.getElementById('v-email').innerText = data.emails_sent;
+        document.getElementById('v-wa').innerText = data.whatsapp_sent;
+        document.getElementById('v-tg').innerText = data.telegram_sent;
+        document.getElementById('v-sums').innerText = data.summaries;
+
+        // ===== Update Charts =====
+        dChart.data.datasets[0].data = [
+            data.emails_sent,
+            data.whatsapp_sent,
+            data.telegram_sent
+        ];
+
+        bChart.data.datasets[0].data = [
+            data.voice_commands,
+            data.summaries,
+            data.emails_received
+        ];
+
+        dChart.update('none');
+        bChart.update('none');
+    }
+
+    syncStats();
+    setInterval(syncStats, 2000);
+</script>
+
+</body>
+</html>

@@ -2,69 +2,166 @@
 <html>
 <head>
     <title>NovaVoice Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
-        .card { background: #1e293b; padding: 40px; border-radius: 20px; text-align: center; border: 2px solid #38bdf8; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 12px; }
-        h1 { color: #38bdf8; margin-bottom: 20px; font-size: 28px; }
-        .mic-btn { background: #fbbf24; color: #000; width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; animation: pulse 1.5s infinite; }
-        .btn { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; color: white; background: #334155; transition: 0.2s; }
-        .compose-btn { background: #38bdf8; color: #000; }
-        .logout-btn { background: #ef4444; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(251, 191, 36, 0); } 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); } }
-        #status { color: #fbbf24; margin-top: 15px; font-weight: bold; font-style: italic; }
+        body { margin:0; font-family:'Segoe UI'; background:#0f172a; color:white; display:flex; }
+        .sidebar { width:240px; background:#111827; padding:20px; height:100vh; position:relative; }
+        .sidebar h2 { color:#38bdf8; margin-bottom:30px; }
+        .sidebar a { display:block; padding:12px; margin-bottom:10px; background:#1e293b;
+                     border-radius:8px; cursor:pointer; text-decoration:none; color:white; }
+        .sidebar a:hover { background:#334155; }
+        .main { flex:1; padding:25px; }
+        #main-content { min-height:80vh; }
+        .voice-btn { position:fixed; bottom:30px; right:30px; background:#38bdf8;
+                     border:none; padding:15px 18px; border-radius:50%; cursor:pointer; }
+        .logout { position:absolute; bottom:20px; width:200px; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>NovaVoice Dashboard</h1>
-        <button class="mic-btn">🎤 SYSTEM LISTENING</button>
-        <button onclick="window.location.href='/compose'" class="btn compose-btn">COMPOSE</button>
-        <button onclick="window.location.href='/inbox'" class="btn">INBOX</button>
-        <button onclick="window.location.href='/sent'" class="btn">SENT</button>
-        <button onclick="window.location.href='/trash'" class="btn">🗑️ TRASH</button>
-        <button onclick="window.location.href='/face_auth_page'" class="btn logout-btn">LOGOUT</button>
-        <div id="status">Listening...</div>
+
+<div class="sidebar">
+    <h2>NovaVoice</h2>
+    <a onclick="loadSection('/load/home')">Home</a>
+    <a onclick="loadSection('/load/inbox')">Inbox</a>
+    <a onclick="loadSection('/load/sent')">Sent</a>
+    <a onclick="loadSection('/load/trash')">Trash</a>
+    <a onclick="loadSection('/load/compose?platform=email')">Compose Email</a>
+    <a onclick="loadSection('/load/compose?platform=whatsapp')">WhatsApp</a>
+    <a onclick="loadSection('/load/compose?platform=telegram')">Telegram</a>
+    <a onclick="loadSection('/load/analytics')">Analytics</a>
+
+    <div class="logout">
+        <a href="/logout" style="background:#7f1d1d;">Logout</a>
     </div>
+</div>
 
-    <script>
-    function speak(text) {
-        return new Promise((resolve) => {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.onend = () => { setTimeout(resolve, 300); };
-            window.speechSynthesis.speak(utterance);
-        });
-    }
+<div class="main">
+    <div id="main-content"></div>
+</div>
 
-    async function loopListener() {
-        try {
-            const res = await fetch('/voice_action', { method: 'POST' });
-            const data = await res.json();
+<button class="voice-btn" onclick="startVoice()">🎤</button>
 
-            // UPDATION: Update the status text below logout
-            const statusDiv = document.getElementById('status');
-            
-            if (data.status === "ask_reply") {
-                statusDiv.innerText = "waiting for reply or cancel"; // The message you requested
-            } else if (data.status === "navigate" || data.status === "logout") {
-                statusDiv.innerText = data.message;
-                await speak(data.message);
-                window.location.href = data.url;
-                return; 
-            } else {
-                statusDiv.innerText = "Listening...";
+<script>
+let recognition;
+let isListening = false;
+let isSpeaking = false;
+
+function speak(text, callback=null) {
+    window.speechSynthesis.cancel(); // stop overlapping speech
+
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.lang = "en-US";
+    speech.rate = 1;
+
+    speech.onstart = () => { isSpeaking = true; };
+    speech.onend = () => {
+        isSpeaking = false;
+        if (callback) callback();
+    };
+
+    window.speechSynthesis.speak(speech);
+}
+
+function startListening() {
+    if (isListening || isSpeaking) return;
+
+    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        isListening = true;
+        console.log("Listening...");
+    };
+
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        console.log("You said:", text);
+        sendToBackend(text);
+    };
+
+    recognition.onerror = () => {
+        isListening = false;
+        setTimeout(startListening, 1000);
+    };
+
+    recognition.onend = () => {
+        isListening = false;
+    };
+
+    recognition.start();
+}
+
+function sendToBackend(text) {
+    fetch("/voice_action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        // Handle simple speak response
+        if (data.status === "speak") {
+            speak(data.message, () => {
+                speak("Listening for your commands", startListening);
+            });
+            return;
+        }
+
+        // Handle navigation
+        if (data.status === "navigate") {
+
+            // If logout, redirect fully
+            if (data.url === "/logout") {
+                speak(data.speak, () => {
+                    window.location.href = "/logout";
+                });
+                return;
             }
 
-            if (data.message) { await speak(data.message); }
-            loopListener(); 
-        } catch (err) { setTimeout(loopListener, 1000); }
-    }
+            fetch(data.url)
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById("main-content").innerHTML = html;
 
-    window.onload = async () => {
-        // This will always run when navigating back to dashboard
-        await speak("Hi Keerthi, listening for your commands.");
-        loopListener();
-    };
-    </script>
+                speak(data.speak, () => {
+                    speak("Listening for your commands", startListening);
+                });
+            });
+
+        } else {
+            startListening();
+        }
+    });
+}
+
+/* Sidebar click navigation */
+function loadSection(url) {
+    fetch(url)
+    .then(res => res.text())
+    .then(html => {
+        document.getElementById("main-content").innerHTML = html;
+    });
+}
+
+/* Mic button manual trigger */
+function startVoice() {
+    startListening();
+}
+
+/* On dashboard load */
+window.onload = function() {
+    loadSection('/load/home');
+
+    setTimeout(() => {
+        speak("Welcome to NovaVoice dashboard.", () => {
+            speak("Listening for your commands.", startListening);
+        });
+    }, 1000);
+};
+</script>
+
 </body>
 </html>

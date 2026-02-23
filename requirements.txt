@@ -7,3 +7,9 @@ google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
 python-dotenv
+twilio
+requests
+transformers
+tensorflow
+sentencepiece
+numpy

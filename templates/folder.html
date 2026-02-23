@@ -1,89 +1,166 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NovaVoice - {{ title }}</title>
-    <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 90%; max-width: 700px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #38bdf8; padding-bottom: 10px; }
-        .back-btn { background: #334155; color: white; padding: 8px 15px; border-radius: 15px; text-decoration: none; font-size: 14px; font-weight: bold; }
-        .email-card { background: #1e293b; padding: 15px; border-radius: 12px; margin-top: 10px; border-left: 4px solid #38bdf8; }
-        .sender { color: #38bdf8; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div id="listening-bar" style="background: #fbbf24; color: #000; padding: 8px 20px; border-radius: 20px; font-weight: bold; margin-bottom: 20px;">🎤 System Listening...</div>
-    <div class="container">
-        <div class="header">
-            <h2>{{ title }}</h2>
-            <a href="/dashboard" class="back-btn">← DASHBOARD</a>
-        </div>
-        {% if emails %}
-            {% for email in emails %}
-            <div class="email-card">
-                <div class="sender">Mail {{ loop.index }}: {{ email.sender }}</div>
-                <div class="snippet">{{ email.snippet }}</div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div style="text-align: center; color: #64748b; margin-top: 40px;">No messages found.</div>
-        {% endif %}
+<!-- folder.html -->
+<style>
+    .folder-view {
+        padding: 10px;
+        animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .folder-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #38bdf8;
+        padding-bottom: 10px;
+    }
+
+    .folder-title {
+        color: #38bdf8;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .email-list {
+        display: grid;
+        gap: 15px;
+    }
+
+    .email-card {
+        background: #1e293b;
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 5px solid #38bdf8;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .email-card:hover {
+        transform: scale(1.01);
+        background: #2d3748;
+    }
+
+    .email-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .email-number {
+        background: #38bdf8;
+        color: #0f172a;
+        padding: 2px 8px;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 14px;
+        margin-right: 10px;
+    }
+
+    .email-sender {
+        color: #38bdf8;
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+
+    .email-date {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+
+    .email-subject {
+        font-weight: 600;
+        margin: 5px 0;
+        color: #f1f5f9;
+        font-size: 16px;
+    }
+
+    .email-snippet {
+        color: #94a3b8;
+        font-size: 14px;
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 100px 20px;
+        color: #64748b;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        display: block;
+        opacity: 0.5;
+    }
+</style>
+
+<div class="folder-view">
+    <div class="folder-header">
+        <h2 class="folder-title">{{ title }}</h2>
+        <span style="color: #94a3b8; font-size: 14px;">Showing latest 10 messages</span>
     </div>
 
-    <script>
-    function speak(text) {
-        return new Promise((resolve) => {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.onend = () => { setTimeout(resolve, 300); };
-            window.speechSynthesis.speak(utterance);
-        });
-    }
+    {% if emails %}
+        <div class="email-list">
+            {% for email in emails %}
+            <div class="email-card">
+                <div class="email-meta">
+                    <div>
+                        <span class="email-number">{{ loop.index }}</span>
+                        <span class="email-sender">{{ email.sender }}</span>
+                    </div>
+                    <span class="email-date">{{ email.date }}</span>
+                </div>
+                <div class="email-subject">{{ email.subject }}</div>
+                <div class="email-snippet">{{ email.snippet }}...</div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-folder-open"></i>
+            <p>No messages found in {{ title }}.</p>
+        </div>
+    {% endif %}
+</div>
 
-    async function loop() {
-        try {
-            const res = await fetch('/voice_action', { method: 'POST' });
-            const data = await res.json();
-            
-            if (data.status === "navigate") {
-                await speak(data.message);
-                window.location.href = data.url;
-                return;
-            }
+<script>
+    /**
+     * Hands-Free Initialization:
+     * When this folder loads, we announce the state.
+     * The main loop in dashboard.html stays active for commands like
+     * "open email 1" or "summarize email 2".
+     */
+    (function() {
+        const title = "{{ title }}";
+        const emailCount = parseInt("{{ emails|length }}");
+        
+        let introText = "Showing your " + title + ". ";
+        if (emailCount > 0) {
+            introText += "You have " + emailCount + " latest messages. ";
+            introText += "Say open email followed by the number, or summarize email followed by the number.";
+        } else {
+            introText += "This folder is empty.";
+        }
 
-            if (data.status === "ask_reply") {
-                await speak(data.message); // Reads mail content + asks reply/cancel
-                
-                // Get User Choice
-                const decisionRes = await fetch('/voice_action', { method: 'POST' });
-                const decisionData = await decisionRes.json();
-                const cmd = decisionData.message.toLowerCase();
-                
-                if (cmd.includes("reply")) {
-                    await speak("What is your reply message?");
-                    const contentRes = await fetch('/voice_action', { method: 'POST' });
-                    const contentData = await contentRes.json();
-                    
-                    await fetch('/reply_to_mail', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: contentData.message })
-                    });
-                    await speak("Reply sent successfully.");
-                } else {
-                    await speak("Cancelled.");
-                }
-            } else if (data.message) {
-                await speak(data.message);
-            }
-            loop(); 
-        } catch { setTimeout(loop, 1000); }
-    }
-
-    window.onload = () => { 
-        speak("Viewing {{ title }}"); 
-        loop(); 
-    };
-    </script>
-</body>
-</html>
+        // Use the global speak function from dashboard.html
+        if (typeof speak === "function") {
+            speak(introText);
+        } else {
+            // Fallback if testing outside dashboard
+            const msg = new SpeechSynthesisUtterance(introText);
+            window.speechSynthesis.speak(msg);
+        }
+    })();
+</script>
